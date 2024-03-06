@@ -1,6 +1,31 @@
+use clap::Parser;
 use reqwest;
 use std::{env, fmt::Display, fs, process};
 use tokio;
+
+#[derive(clap::Parser, Debug, Default)]
+struct ReadCommand;
+
+#[derive(clap::Parser, Debug)]
+struct Config;
+
+/// A CLI so I can learn Rust
+#[derive(clap::Parser, Debug)]
+enum SubCommand {
+    /// Install a new Node.js version
+    #[clap(name = "read")]
+    Read(ReadCommand),
+}
+
+/// A fast and simple Node.js manager.
+#[derive(clap::Parser, Debug)]
+#[clap(name = "cli")]
+pub struct Cli {
+    #[clap(flatten)]
+    pub config: Config,
+    #[clap(subcommand)]
+    pub subcmd: SubCommand,
+}
 
 #[derive(Debug)]
 enum CommandType {
@@ -9,6 +34,29 @@ enum CommandType {
     ReadFile,
     ReadDirectory,
     HealthCommand,
+}
+
+impl ReadCommand {
+    fn apply() -> () {
+        println!("Read");
+    }
+    fn call() -> () {
+        println!("Read");
+    }
+}
+
+trait CommandX {
+    fn run(&self) -> ();
+    fn new(args: &Vec<String>) -> Self;
+}
+
+impl CommandX for ReadCommand {
+    fn new(_args: &Vec<String>) -> Self {
+        ReadCommand {}
+    }
+    fn run(&self) -> () {
+        println!("This is the help menu")
+    }
 }
 
 async fn health_check() -> Result<String, reqwest::Error> {
@@ -46,6 +94,12 @@ impl Display for CommandType {
                 CommandType::HealthCommand => "health",
             }
         )
+    }
+}
+
+impl SubCommand {
+    fn call(&self) {
+        println!("Called")
     }
 }
 
@@ -127,25 +181,31 @@ impl Command {
 // ./cli read file.txt
 // ./cli dir
 
-#[tokio::main]
-async fn main() {
-    let args = env::args().skip(1).collect();
+fn main() {
+    let args = Cli::parse();
 
-    let c = match Command::new(args) {
-        Ok(x) => x,
-        Err(e) => {
-            eprintln!("ERROR: {}", e);
-            process::exit(1);
-        }
-    };
+    args.subcmd.call()
 
-    let output = match c.execute().await {
-        Ok(x) => x,
-        Err(e) => {
-            eprintln!("ERROR: {}", e);
-            process::exit(1);
-        }
-    };
+    // for _ in 0..args.count {
+    // println!("Hello {}!", args.name)
+    // }
+    // let args = env::args().skip(1).collect();
 
-    println!("{}", output);
+    // let c = match Command::new(args) {
+    //     Ok(x) => x,
+    //     Err(e) => {
+    //         eprintln!("ERROR: {}", e);
+    //         process::exit(1);
+    //     }
+    // };
+
+    // let output = match c.execute().await {
+    //     Ok(x) => x,
+    //     Err(e) => {
+    //         eprintln!("ERROR: {}", e);
+    //         process::exit(1);
+    //     }
+    // };
+
+    // println!("{}", output);
 }
