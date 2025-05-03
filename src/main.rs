@@ -1,38 +1,35 @@
-use async_trait::async_trait;
+mod commands;
+mod config;
+use crate::commands::command::Command;
+use crate::commands::health::HealthCommand;
+use crate::commands::read::ReadCommand;
+use crate::commands::read_dir::ReadDirectoryCommand;
+use crate::config::Config;
 use clap::Parser;
-use reqwest;
-use std::fs;
+use commands::write::WriteCommand;
 use tokio;
 
-#[derive(clap::Parser, Debug, Default)]
-struct ReadCommand {
-    file_name: String,
-}
-
-#[derive(Debug, clap::Parser)]
-struct ReadDirectoryCommand {
-    path: String,
-}
-
-#[derive(clap::Parser, Debug)]
-struct Config;
-
 /// A CLI so I can learn Rust
-#[derive(clap::Parser, Debug)]
+#[derive(clap::Parser)]
 enum SubCommand {
-    /// Install a new Node.js version
+    /// Read a file
     #[clap(name = "read")]
     Read(ReadCommand),
 
+    /// List the contents of a directory (ls)
     #[clap(name = "dir")]
     ReadDir(ReadDirectoryCommand),
 
+    /// Perform a health check on https://partybox.im
     #[clap(name = "health")]
     Health(HealthCommand),
+
+    /// Write some data
+    #[clap(name = "write")]
+    Write(WriteCommand),
 }
 
-/// A fast and simple Node.js manager.
-#[derive(clap::Parser, Debug)]
+#[derive(clap::Parser)]
 #[clap(name = "cli")]
 struct Cli {
     #[clap(flatten)]
@@ -41,68 +38,14 @@ struct Cli {
     subcmd: SubCommand,
 }
 
-#[async_trait]
-trait Command {
-    async fn call(&self, config: &Config) -> ();
-}
-
-#[async_trait]
-impl Command for ReadCommand {
-    async fn call(&self, _config: &Config) -> () {
-        let data = fs::read_to_string(&self.file_name).unwrap();
-
-        println!("{}", data);
-    }
-}
-
-async fn health_check() -> Result<String, reqwest::Error> {
-    let g = reqwest::get("https://partybox.im/api/health")
-        .await?
-        .text()
-        .await?;
-
-    return Ok(g);
-}
-
 impl SubCommand {
     async fn call(&self, config: Config) {
         match self {
             SubCommand::Read(cmd) => cmd.call(&config).await,
             SubCommand::Health(cmd) => cmd.call(&config).await,
             SubCommand::ReadDir(cmd) => cmd.call(&config).await,
+            SubCommand::Write(cmd) => cmd.call(&config).await,
         }
-    }
-}
-
-#[async_trait]
-impl Command for ReadDirectoryCommand {
-    async fn call(&self, _config: &Config) -> () {
-        let mut output = String::new();
-
-        let files = fs::read_dir(&self.path).unwrap();
-        for (i, f) in files.enumerate() {
-            let name = f.unwrap().file_name();
-            let name_str = name.to_str().unwrap();
-
-            if i > 0 {
-                output.push('\n');
-            }
-
-            output.push_str(name_str);
-        }
-
-        println!("{}", output)
-    }
-}
-
-#[derive(Debug, clap::Parser)]
-struct HealthCommand;
-#[async_trait]
-impl Command for HealthCommand {
-    async fn call(&self, _config: &Config) -> () {
-        let body = health_check().await.unwrap();
-
-        println!("{}", body);
     }
 }
 
